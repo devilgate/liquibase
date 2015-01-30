@@ -1459,4 +1459,35 @@ public abstract class AbstractJdbcDatabase implements Database {
 	public String getSystemSchema(){
     	return "information_schema";
     }
+    
+    @Override
+    public boolean hasColumnCommentLengthLimit() {
+        // Default implementation returns false. 
+        return false;
+    }
+    
+    @Override
+    public int getColumnRemarksMaxLength() {
+        // Default is zero, which means no maximum. 
+        return 0;
+    }
+    
+    @Override
+    /**
+     * If there is a limit and the received string is longer we truncate and fill the last 
+     * three characters with an ellipsis (...), to show that truncation
+     * has occurred.
+     * 
+     * @param statement
+     * @return
+     */
+    public String formatColumnRemarks(SetColumnRemarksStatement statement) {
+        String newRemarks = statement.getRemarks();
+        if (hasColumnCommentLengthLimit() && getColumnRemarksMaxLength() > 0) {
+            if (newRemarks.length() > getColumnRemarksMaxLength()) {
+                newRemarks = newRemarks.substring(0, getColumnRemarksMaxLength() - 3) + "...";
+            }
+        }
+        return escapeStringForDatabase(newRemarks);
+    }
 }

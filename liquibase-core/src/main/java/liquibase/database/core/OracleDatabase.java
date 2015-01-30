@@ -321,4 +321,15 @@ public class OracleDatabase extends AbstractJdbcDatabase {
         }
         return super.generateDatabaseFunctionValue(databaseFunction);
     }
+    
+    @Override
+    public boolean hasColumnCommentLengthLimit() {
+        return true;
+    }
+    
+    @Override
+    public int getColumnRemarksMaxLength() {
+        // Hard to find official documentation on has been cited.
+        return 4000;
+    }
 }

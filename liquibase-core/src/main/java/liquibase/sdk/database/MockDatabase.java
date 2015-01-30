@@ -31,6 +31,7 @@ import liquibase.lockservice.DatabaseChangeLogLock;
 import liquibase.sql.visitor.SqlVisitor;
 import liquibase.statement.DatabaseFunction;
 import liquibase.statement.SqlStatement;
+import liquibase.statement.core.SetColumnRemarksStatement;
 import liquibase.structure.DatabaseObject;
 import liquibase.structure.core.Schema;
 
@@ -756,5 +757,23 @@ public class MockDatabase implements Database, InternalDatabase {
     @Override
     public String toString() {
         return "Mock database";
+    }
+
+
+    @Override
+    public boolean hasColumnCommentLengthLimit() {
+        return false;
+    }
+
+
+    @Override
+    public String formatColumnRemarks(SetColumnRemarksStatement statement) {
+        return null;
+    }
+
+
+    @Override
+    public int getColumnRemarksMaxLength() {
+        return 0;
     }
 }

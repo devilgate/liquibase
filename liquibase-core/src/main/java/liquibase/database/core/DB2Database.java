@@ -235,5 +235,16 @@ public class DB2Database extends AbstractJdbcDatabase {
     public boolean jdbcCallsCatalogsSchemas() {
         return true;
     }
+    
+    @Override
+    public boolean hasColumnCommentLengthLimit() {
+        return true;
+    }
+    
+    @Override
+    public int getColumnRemarksMaxLength() {
+        // From what we can find in IBM's documentation.
+        return 254;
+    }
 
 }

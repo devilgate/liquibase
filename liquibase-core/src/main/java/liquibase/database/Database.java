@@ -11,6 +11,7 @@ import liquibase.servicelocator.PrioritizedService;
 import liquibase.sql.visitor.SqlVisitor;
 import liquibase.statement.SqlStatement;
 import liquibase.statement.DatabaseFunction;
+import liquibase.statement.core.SetColumnRemarksStatement;
 
 import java.io.IOException;
 import java.io.Writer;
@@ -334,5 +335,31 @@ public interface Database extends PrioritizedService {
     public String getSystemSchema();
 
     public void addReservedWords(Collection<String> words);
+    
+    /**
+     * Implementations should return true if the underlying database imposes a 
+     * limit on the length of string for a {@code COMMENT ON COLUMN...} statement.
+     *  
+     * @return
+     */
+    public boolean hasColumnCommentLengthLimit();
+    
+    /**
+     * Implementations should return the column remarks formatted appropriately 
+     * for the underlying database. In particular, if the DB imposes a maximum
+     * length, the implementation must restrict the returned value to that length.
+     * 
+     * @param statement
+     * @return
+     */
+    public String formatColumnRemarks(SetColumnRemarksStatement statement);
+    
+    /**
+     * Zero will mean no maximum value. Implementations should returen the appropriate
+     * value for their underlying database.
+     * 
+     * @return
+     */
+    public int getColumnRemarksMaxLength();
 }
 
