@@ -190,7 +190,10 @@ public class ChangeLogParameters {
             boolean isValid = validContexts == null || validContexts.matches(ChangeLogParameters.this.currentContexts);
 
             if (isValid) {
-                isValid = labels == null || currentLabelExpression.matches(labels);
+                // Seems that currentLabelExpression is null when called from 
+                // Ant, not when called from the command line. That may be a 
+                // problem, but just checking here seems to leave things OK.
+                isValid = labels == null || currentLabelExpression != null && currentLabelExpression.matches(labels);
             }
 
             if (isValid) {

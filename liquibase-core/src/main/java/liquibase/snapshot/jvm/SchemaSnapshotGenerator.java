@@ -70,6 +70,10 @@ public class SchemaSnapshotGenerator extends JdbcSnapshotGenerator {
                     if (DatabaseObjectComparatorFactory.getInstance().isSameObject(schema, example, database)) {
                         if (match == null) {
                             match = schema;
+                            
+                            // Why go on once we've got one? Also things can get 
+                            // confused on DB2 for i. Adding beak.
+                            break;
                         } else {
                             throw new InvalidExampleException("Found multiple catalog/schemas matching " + ((Schema) example).getCatalogName() + "." + example.getName());
                         }
