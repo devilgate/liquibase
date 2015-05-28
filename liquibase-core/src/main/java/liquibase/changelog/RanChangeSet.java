@@ -1,5 +1,7 @@
 package liquibase.changelog;
 
+import liquibase.ContextExpression;
+import liquibase.Labels;
 import liquibase.change.CheckSum;
 
 import java.util.Date;
@@ -17,14 +19,16 @@ public class RanChangeSet {
     private ChangeSet.ExecType execType;
     private String description;
     private String comments;
-    private int orderExecuted;
+    private Integer orderExecuted;
+    private ContextExpression contextExpression;
+    private Labels labels;
 
 
     public RanChangeSet(ChangeSet changeSet) {
-        this(changeSet, null);
+        this(changeSet, null, null, null);
     }
 
-    public RanChangeSet(ChangeSet changeSet, ChangeSet.ExecType execType) {
+    public RanChangeSet(ChangeSet changeSet, ChangeSet.ExecType execType, ContextExpression contexts, Labels labels) {
         this(changeSet.getFilePath(),
              changeSet.getId(),
              changeSet.getAuthor(),
@@ -33,10 +37,12 @@ public class RanChangeSet {
              null,
              execType,
             changeSet.getDescription(),
-            changeSet.getComments());
+            changeSet.getComments(),
+                contexts,
+                labels);
     }
 
-    public RanChangeSet(String changeLog, String id, String author, CheckSum lastCheckSum, Date dateExecuted, String tag, ChangeSet.ExecType execType, String description, String comments) {
+    public RanChangeSet(String changeLog, String id, String author, CheckSum lastCheckSum, Date dateExecuted, String tag, ChangeSet.ExecType execType, String description, String comments, ContextExpression contextExpression, Labels labels) {
         this.changeLog = changeLog;
         this.id = id;
         this.author = author;
@@ -50,6 +56,8 @@ public class RanChangeSet {
         this.execType = execType;
         this.description = description;
         this.comments = comments;
+        this.contextExpression = contextExpression;
+        this.labels = labels;
     }
 
     public String getChangeLog() {
@@ -103,11 +111,19 @@ public class RanChangeSet {
         this.comments = comments;
     }
 
-    public int getOrderExecuted() {
+    public ContextExpression getContextExpression() {
+        return contextExpression;
+    }
+
+    public Labels getLabels() {
+        return labels;
+    }
+
+    public Integer getOrderExecuted() {
 		return orderExecuted;
 	}
 
-	public void setOrderExecuted(int orderExecuted) {
+	public void setOrderExecuted(Integer orderExecuted) {
 		this.orderExecuted = orderExecuted;
 	}
 

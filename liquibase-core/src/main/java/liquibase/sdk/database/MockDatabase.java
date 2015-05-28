@@ -759,7 +759,6 @@ public class MockDatabase implements Database, InternalDatabase {
         return "Mock database";
     }
 
-
     @Override
     public boolean hasColumnCommentLengthLimit() {
         return false;
@@ -775,5 +774,20 @@ public class MockDatabase implements Database, InternalDatabase {
     @Override
     public int getColumnRemarksMaxLength() {
         return 0;
+    }
+
+    @Override
+    public String escapeDataTypeName(String dataTypeName) {
+        return dataTypeName;
+    }
+
+    @Override
+    public String unescapeDataTypeName(String dataTypeName) {
+        return dataTypeName;
+    }
+
+    @Override
+    public String unescapeDataTypeString(String dataTypeString) {
+        return dataTypeString;
     }
 }

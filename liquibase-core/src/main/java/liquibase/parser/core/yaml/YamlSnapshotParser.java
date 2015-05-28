@@ -13,6 +13,7 @@ import liquibase.util.StreamUtil;
 import org.yaml.snakeyaml.Yaml;
 
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.util.List;
 import java.util.Map;
 
@@ -30,7 +31,7 @@ public class YamlSnapshotParser extends YamlParser implements SnapshotParser {
 
             Map parsedYaml;
             try {
-                parsedYaml = yaml.loadAs(stream, Map.class);
+                parsedYaml = yaml.loadAs(new InputStreamReader(stream, "UTF-8"), Map.class);
             } catch (Exception e) {
                 throw new LiquibaseParseException("Syntax error in " + getSupportedFileExtensions()[0] + ": " + e.getMessage(), e);
             }
@@ -42,7 +43,7 @@ public class YamlSnapshotParser extends YamlParser implements SnapshotParser {
 
             String shortName = (String) ((Map) rootList.get("database")).get("shortName");
 
-            Database database = DatabaseFactory.getInstance().getDatabase(shortName);
+            Database database = DatabaseFactory.getInstance().getDatabase(shortName).getClass().newInstance();
             DatabaseSnapshot snapshot = new RestoredDatabaseSnapshot(database);
             ParsedNode snapshotNode = new ParsedNode(null, "snapshot");
             snapshotNode.setValue(rootList);

@@ -335,7 +335,7 @@ public interface Database extends PrioritizedService {
     public String getSystemSchema();
 
     public void addReservedWords(Collection<String> words);
-    
+ 
     /**
      * Implementations should return true if the underlying database imposes a 
      * limit on the length of string for a {@code COMMENT ON COLUMN...} statement.
@@ -355,11 +355,18 @@ public interface Database extends PrioritizedService {
     public String formatColumnRemarks(SetColumnRemarksStatement statement);
     
     /**
-     * Zero will mean no maximum value. Implementations should returen the appropriate
+     * Zero will mean no maximum value. Implementations should return the appropriate
      * value for their underlying database.
      * 
      * @return
      */
     public int getColumnRemarksMaxLength();
+
+    String escapeDataTypeName(String dataTypeName);
+
+    String unescapeDataTypeName(String dataTypeName);
+
+    String unescapeDataTypeString(String dataTypeString);
+
 }
 

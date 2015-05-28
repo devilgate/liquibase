@@ -22,6 +22,7 @@ import liquibase.logging.Logger;
 import liquibase.resource.ClassLoaderResourceAccessor;
 import liquibase.resource.CompositeResourceAccessor;
 import liquibase.resource.FileSystemResourceAccessor;
+import liquibase.resource.ResourceAccessor;
 import liquibase.servicelocator.ServiceLocator;
 import liquibase.util.ISODateFormat;
 import liquibase.util.LiquibaseUtil;
@@ -55,6 +56,8 @@ public class Main {
     protected String outputDefaultCatalog;
 	protected String liquibaseCatalogName;
 	protected String liquibaseSchemaName;
+    protected String databaseChangeLogTableName;
+    protected String databaseChangeLogLockTableName;
     protected String defaultCatalogName;
     protected String changeLogFile;
     protected String classpath;
@@ -89,7 +92,7 @@ public class Main {
 
     protected String outputFile;
 
-	public static void main(String args[]) throws CommandLineParsingException, IOException {
+    public static void main(String args[]) throws CommandLineParsingException, IOException {
 		try {
 			run(args);
 		} catch (LiquibaseException e) {
@@ -266,12 +269,8 @@ public class Main {
     private void checkForUnexpectedCommandParameter(List<String> messages) {
         if ("updateCount".equalsIgnoreCase(command)
             || "updateCountSQL".equalsIgnoreCase(command)
-            || "rollback".equalsIgnoreCase(command)
-            || "rollbackToDate".equalsIgnoreCase(command)
-            || "rollbackCount".equalsIgnoreCase(command)
-            || "rollbackSQL".equalsIgnoreCase(command)
-            || "rollbackToDateSQL".equalsIgnoreCase(command)
-            || "rollbackCountSQL".equalsIgnoreCase(command)
+            || "updateToTag".equalsIgnoreCase(command)
+            || "updateToTagSQL".equalsIgnoreCase(command)
             || "calculateCheckSum".equalsIgnoreCase(command)
             || "dbDoc".equalsIgnoreCase(command)
             || "tag".equalsIgnoreCase(command)
@@ -359,6 +358,8 @@ public class Main {
                 || "updateSQL".equalsIgnoreCase(arg)
                 || "updateCount".equalsIgnoreCase(arg)
                 || "updateCountSQL".equalsIgnoreCase(arg)
+                || "updateToTag".equalsIgnoreCase(arg)
+                || "updateToTagSQL".equalsIgnoreCase(arg)
                 || "rollback".equalsIgnoreCase(arg)
                 || "rollbackToDate".equalsIgnoreCase(arg)
                 || "rollbackCount".equalsIgnoreCase(arg)
@@ -367,6 +368,7 @@ public class Main {
                 || "rollbackCountSQL".equalsIgnoreCase(arg)
                 || "futureRollbackSQL".equalsIgnoreCase(arg)
                 || "futureRollbackCountSQL".equalsIgnoreCase(arg)
+                || "futureRollbackToTagSQL".equalsIgnoreCase(arg)
                 || "updateTestingRollback".equalsIgnoreCase(arg)
                 || "tag".equalsIgnoreCase(arg)
                 || "tagExists".equalsIgnoreCase(arg)
@@ -480,6 +482,10 @@ public class Main {
         stream.println(" updateCount <num>              Applies next NUM changes to the database");
         stream.println(" updateCountSQL <num>           Writes SQL to apply next NUM changes");
         stream.println("                                to the database");
+        stream.println(" updateToTag <tag>              Updates the database to the changeSet with the");
+        stream.println("                                specified tag");
+        stream.println(" updateToTagSQL <tag>           Writes (to standard out) the SQL to update to");
+        stream.println("                                the changeSet with the specified tag");
         stream.println(" rollback <tag>                 Rolls back the database to the the state is was");
         stream.println("                                when the tag was applied");
         stream.println(" rollbackSQL <tag>              Writes SQL to roll back the database to that");
@@ -502,6 +508,10 @@ public class Main {
         stream.println(" futureRollbackSQL <value>      Writes SQL to roll back the database to the ");
         stream.println("                                current state after <value> changes in the ");
         stream.println("                                changeslog have been applied");
+        stream.println(" futureRollbackFromTagSQL <tag> Writes (to standard out) the SQL to roll back");
+        stream.println("                                the database to its current state after the");
+        stream.println("                                changes up to the specified tag have been");
+        stream.println("                                applied");
         stream.println(" updateTestingRollback          Updates database, then rolls back changes before");
         stream.println("                                updating again. Useful for testing");
         stream.println("                                rollback support");
@@ -577,6 +587,13 @@ public class Main {
         stream.println("                                            to be created");
         stream.println(" --liquibaseCatalogName=<name>              The name of the catalog with the");
         stream.println("                                            liquibase tables");
+        stream.println(" --liquibaseSchemaName=<name>               The name of the schema with the");
+        stream.println("                                            liquibase tables");
+        stream.println(" --databaseChangeLogTableName=<name>        The name of the Liquibase ChangeLog");
+        stream.println("                                            table (default: DATABASECHANGELOG)");
+        stream.println(" --databaseChangeLogLockTableName=<name>    The name of the Liquibase ChangeLog");
+        stream.println("                                            Lock table");
+        stream.println("                                            (default: DATABASECHANGELOGLOCK)");
         stream.println(" --liquibaseSchemaName=<name>               The name of the schema with the");
         stream.println("                                            liquibase tables");
         stream.println(" --includeSystemClasspath=<true|false>      Include the system classpath");
@@ -887,12 +904,14 @@ public class Main {
 
         FileSystemResourceAccessor fsOpener = new FileSystemResourceAccessor();
         CommandLineResourceAccessor clOpener = new CommandLineResourceAccessor(classLoader);
-        Database database = CommandLineUtils.createDatabaseObject(classLoader, this.url,
-            this.username, this.password, this.driver, this.defaultCatalogName,this.defaultSchemaName,  Boolean.parseBoolean(outputDefaultCatalog), Boolean.parseBoolean(outputDefaultSchema), this.databaseClass, this.driverPropertiesFile, this.propertyProviderClass, this.liquibaseCatalogName, this.liquibaseSchemaName);
+        CompositeResourceAccessor fileOpener = new CompositeResourceAccessor(fsOpener, clOpener);
+
+        Database database = CommandLineUtils.createDatabaseObject(fileOpener, this.url,
+            this.username, this.password, this.driver, this.defaultCatalogName,this.defaultSchemaName,  Boolean.parseBoolean(outputDefaultCatalog), Boolean.parseBoolean(outputDefaultSchema), this.databaseClass, this.driverPropertiesFile, this.propertyProviderClass, this.liquibaseCatalogName, this.liquibaseSchemaName,
+                this.databaseChangeLogTableName, this.databaseChangeLogLockTableName);
         try {
 
 
-            CompositeResourceAccessor fileOpener = new CompositeResourceAccessor(fsOpener, clOpener);
 
             boolean includeCatalog = Boolean.parseBoolean(getCommandParam("includeCatalog", "false"));
             boolean includeSchema = Boolean.parseBoolean(getCommandParam("includeSchema", "false"));
@@ -936,10 +955,10 @@ public class Main {
             }
 
             if ("diff".equalsIgnoreCase(command)) {
-                CommandLineUtils.doDiff(createReferenceDatabaseFromCommandParams(commandParams), database, StringUtils.trimToNull(diffTypes), finalSchemaComparisons);
+                CommandLineUtils.doDiff(createReferenceDatabaseFromCommandParams(commandParams, fileOpener), database, StringUtils.trimToNull(diffTypes), finalSchemaComparisons);
                 return;
             } else if ("diffChangeLog".equalsIgnoreCase(command)) {
-                CommandLineUtils.doDiffToChangeLog(changeLogFile, createReferenceDatabaseFromCommandParams(commandParams), database, diffOutputControl,  StringUtils.trimToNull(diffTypes), finalSchemaComparisons);
+                CommandLineUtils.doDiffToChangeLog(changeLogFile, createReferenceDatabaseFromCommandParams(commandParams, fileOpener), database, diffOutputControl,  StringUtils.trimToNull(diffTypes), finalSchemaComparisons);
                 return;
             } else if ("generateChangeLog".equalsIgnoreCase(command)) {
                 String changeLogFile = this.changeLogFile;
@@ -961,7 +980,10 @@ public class Main {
                 command.setDatabase(database);
                 command.setSchemas(getCommandParam("schemas", database.getDefaultSchema().getSchemaName()));
                 command.setSerializerFormat(getCommandParam("snapshotFormat", null));
-                System.out.println(command.execute());
+                Writer outputWriter = getOutputWriter();
+                outputWriter.write(command.execute().toString());
+                outputWriter.flush();
+                outputWriter.close();
                 return;
             } else if ("executeSql".equalsIgnoreCase(command)) {
                 ExecuteSqlCommand command = new ExecuteSqlCommand();
@@ -969,14 +991,21 @@ public class Main {
                 command.setSql(getCommandParam("sql", null));
                 command.setSqlFile(getCommandParam("sqlFile", null));
                 command.setDelimiter(getCommandParam("delimiter", ";"));
-                System.out.println(command.execute());
+                Writer outputWriter = getOutputWriter();
+                outputWriter.write(command.execute().toString());
+                outputWriter.flush();
+                outputWriter.close();
                 return;
             } else if ("snapshotReference".equalsIgnoreCase(command)) {
                 SnapshotCommand command = new SnapshotCommand();
-                Database referenceDatabase = createReferenceDatabaseFromCommandParams(commandParams);
+                Database referenceDatabase = createReferenceDatabaseFromCommandParams(commandParams, fileOpener);
                 command.setDatabase(referenceDatabase);
                 command.setSchemas(getCommandParam("schemas", referenceDatabase.getDefaultSchema().getSchemaName()));
-                System.out.println(command.execute());
+                Writer outputWriter = getOutputWriter();
+                outputWriter.write(command.execute().toString());
+                outputWriter.flush();
+                outputWriter.close();
+
                 return;
             }
 
@@ -996,7 +1025,7 @@ public class Main {
                 System.err.println("Successfully released all database change log locks for " + liquibase.getDatabase().getConnection().getConnectionUserName() + "@" + liquibase.getDatabase().getConnection().getURL());
                 return;
             } else if ("tag".equalsIgnoreCase(command)) {
-                liquibase.tag(commandParams.iterator().next());
+                liquibase.tag(getCommandArgument());
                 System.err.println("Successfully tagged " + liquibase.getDatabase().getConnection().getConnectionUserName() + "@" + liquibase.getDatabase().getConnection().getURL());
                 return;
             } else if ("tagExists".equalsIgnoreCase(command)) {
@@ -1071,45 +1100,63 @@ public class Main {
                     liquibase.update(Integer.parseInt(commandParams.iterator().next()), new Contexts(contexts), new LabelExpression(labels));
                 } else if ("updateCountSQL".equalsIgnoreCase(command)) {
                     liquibase.update(Integer.parseInt(commandParams.iterator().next()), new Contexts(contexts), new LabelExpression(labels), getOutputWriter());
+                } else if ("updateToTag".equalsIgnoreCase(command)) {
+                    if (commandParams == null || commandParams.size() == 0) {
+                        throw new CommandLineParsingException("updateToTag requires a tag");
+                    }
+
+                    liquibase.update(commandParams.iterator().next(), new Contexts(contexts), new LabelExpression(labels));
+                } else if ("updateToTagSQL".equalsIgnoreCase(command)) {
+                    if (commandParams == null || commandParams.size() == 0) {
+                        throw new CommandLineParsingException("updateToTagSQL requires a tag");
+                    }
+
+                    liquibase.update(commandParams.iterator().next(), new Contexts(contexts), new LabelExpression(labels), getOutputWriter());
                 } else if ("updateSQL".equalsIgnoreCase(command)) {
                     liquibase.update(new Contexts(contexts), new LabelExpression(labels), getOutputWriter());
                 } else if ("rollback".equalsIgnoreCase(command)) {
-                    if (commandParams == null || commandParams.size() == 0) {
+                    if (getCommandArgument() == null) {
                         throw new CommandLineParsingException("rollback requires a rollback tag");
                     }
-                    liquibase.rollback(commandParams.iterator().next(), new Contexts(contexts), new LabelExpression(labels));
+                    liquibase.rollback(getCommandArgument(), getCommandParam("rollbackScript", null), new Contexts(contexts), new LabelExpression(labels));
                 } else if ("rollbackToDate".equalsIgnoreCase(command)) {
-                    if (commandParams == null || commandParams.size() == 0) {
+                    if (getCommandArgument() == null) {
                         throw new CommandLineParsingException("rollback requires a rollback date");
                     }
-                    liquibase.rollback(new ISODateFormat().parse(commandParams.iterator().next()), new Contexts(contexts), new LabelExpression(labels));
+                    liquibase.rollback(new ISODateFormat().parse(getCommandArgument()), getCommandParam("rollbackScript", null), new Contexts(contexts), new LabelExpression(labels));
                 } else if ("rollbackCount".equalsIgnoreCase(command)) {
-                    liquibase.rollback(Integer.parseInt(commandParams.iterator().next()), new Contexts(contexts), new LabelExpression(labels));
+                    liquibase.rollback(Integer.parseInt(getCommandArgument()), getCommandParam("rollbackScript", null), new Contexts(contexts), new LabelExpression(labels));
 
                 } else if ("rollbackSQL".equalsIgnoreCase(command)) {
-                    if (commandParams == null || commandParams.size() == 0) {
+                    if (getCommandArgument() == null) {
                         throw new CommandLineParsingException("rollbackSQL requires a rollback tag");
                     }
-                    liquibase.rollback(commandParams.iterator().next(), new Contexts(contexts), new LabelExpression(labels), getOutputWriter());
+                    liquibase.rollback(getCommandArgument(), getCommandParam("rollbackScript", null), new Contexts(contexts), new LabelExpression(labels), getOutputWriter());
                 } else if ("rollbackToDateSQL".equalsIgnoreCase(command)) {
-                    if (commandParams == null || commandParams.size() == 0) {
+                    if (getCommandArgument() == null) {
                         throw new CommandLineParsingException("rollbackToDateSQL requires a rollback date");
                     }
-                    liquibase.rollback(new ISODateFormat().parse(commandParams.iterator().next()), new Contexts(contexts), new LabelExpression(labels), getOutputWriter());
+                    liquibase.rollback(new ISODateFormat().parse(getCommandArgument()), getCommandParam("rollbackScript", null), new Contexts(contexts), new LabelExpression(labels), getOutputWriter());
                 } else if ("rollbackCountSQL".equalsIgnoreCase(command)) {
-                    if (commandParams == null || commandParams.size() == 0) {
-                        throw new CommandLineParsingException("rollbackCountSQL requires a rollback tag");
+                    if (getCommandArgument() == null) {
+                        throw new CommandLineParsingException("rollbackCountSQL requires a rollback count");
                     }
 
-                    liquibase.rollback(Integer.parseInt(commandParams.iterator().next()), new Contexts(contexts), new LabelExpression(labels), getOutputWriter());
+                    liquibase.rollback(Integer.parseInt(getCommandArgument()), getCommandParam("rollbackScript", null), new Contexts(contexts), new LabelExpression(labels), getOutputWriter());
                 } else if ("futureRollbackSQL".equalsIgnoreCase(command)) {
-                    liquibase.futureRollbackSQL(null, new Contexts(contexts), new LabelExpression(labels), getOutputWriter());
+                    liquibase.futureRollbackSQL(new Contexts(contexts), new LabelExpression(labels), getOutputWriter());
                 } else if ("futureRollbackCountSQL".equalsIgnoreCase(command)) {
-                    if (commandParams == null || commandParams.size() == 0) {
+                    if (getCommandArgument() == null) {
                         throw new CommandLineParsingException("futureRollbackCountSQL requires a rollback count");
                     }
 
-                    liquibase.futureRollbackSQL(Integer.parseInt(commandParams.iterator().next()), new Contexts(contexts), new LabelExpression(labels), getOutputWriter());
+                    liquibase.futureRollbackSQL(Integer.parseInt(getCommandArgument()), new Contexts(contexts), new LabelExpression(labels), getOutputWriter());
+                } else if ("futureRollbackFromTagSQL".equalsIgnoreCase(command)) {
+                    if (getCommandArgument() == null) {
+                        throw new CommandLineParsingException("futureRollbackFromTagSQL requires a tag");
+                    }
+
+                    liquibase.futureRollbackSQL(getCommandArgument(), new Contexts(contexts), new LabelExpression(labels), getOutputWriter());
                 } else if ("updateTestingRollback".equalsIgnoreCase(command)) {
                     liquibase.updateTestingRollback(new Contexts(contexts), new LabelExpression(labels));
                 } else {
@@ -1128,10 +1175,20 @@ public class Main {
         }
     }
 
+    private String getCommandArgument() {
+        for (String param : commandParams) {
+            if (!param.contains("=")) {
+                return param;
+            }
+        }
+
+        return null;
+    }
+
     private String getCommandParam(String paramName, String defaultValue) throws CommandLineParsingException {
         for (String param : commandParams) {
             if (!param.contains("=")) {
-                return null;
+                continue;
             }
             String[] splitArg = splitArg(param);
 
@@ -1145,7 +1202,7 @@ public class Main {
         return defaultValue;
     }
 
-    private Database createReferenceDatabaseFromCommandParams(Set<String> commandParams) throws CommandLineParsingException, DatabaseException {
+    private Database createReferenceDatabaseFromCommandParams(Set<String> commandParams, ResourceAccessor resourceAccessor) throws CommandLineParsingException, DatabaseException {
         String driver = referenceDriver;
         String url = referenceUrl;
         String username = referenceUsername;
@@ -1183,7 +1240,7 @@ public class Main {
             throw new CommandLineParsingException("referenceUrl parameter missing");
         }
 
-        return CommandLineUtils.createDatabaseObject(classLoader, url, username, password, driver, defaultCatalogName, defaultSchemaName, Boolean.parseBoolean(outputDefaultCatalog), Boolean.parseBoolean(outputDefaultSchema), null, null, this.propertyProviderClass, this.liquibaseCatalogName, this.liquibaseSchemaName);
+        return CommandLineUtils.createDatabaseObject(resourceAccessor, url, username, password, driver, defaultCatalogName, defaultSchemaName, Boolean.parseBoolean(outputDefaultCatalog), Boolean.parseBoolean(outputDefaultSchema), null, null, this.propertyProviderClass, this.liquibaseCatalogName, this.liquibaseSchemaName, this.databaseChangeLogTableName, this.databaseChangeLogLockTableName);
 //        Driver driverObject;
 //        try {
 //            driverObject = (Driver) Class.forName(driver, true, classLoader).newInstance();
